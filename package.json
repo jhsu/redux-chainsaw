@@ -1,0 +1,17 @@
+{
+  "name": "redux-chainsaw",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "babel-node index.js"
+  },
+  "author": "Joe Hsu <jhsu.x1@gmail.com> (http://twitter.com/jhsu)",
+  "license": "MIT",
+  "devDependencies": {
+    "babel": "^5.8.23"
+  },
+  "dependencies": {
+    "lodash": "^3.10.1"
+  }
+}
