@@ -1,5 +1,8 @@
 import _ from 'lodash';
 
+import chai from 'chai';
+let assert = chai.assert;
+
 // wraps action creator and overrides type.
 // TODO: handle thunk
 // TODO: do we want to override type like this?
@@ -50,16 +53,23 @@ function getReducer(tree, fullPath, depth=1) {
   let found = _.get(tree, depthPath.join('.'));
 
   if (!found) {
-    let rootPath = fullPath.slice(0, depth - 1);
-    let remainder = fullPath.slice(depth - 1, deepest).join('.');
-    return [_.get(tree, rootPath.concat('default').join('.')), remainder];
+    let foundDepth = depth - 1;
+    let rootPath = fullPath.slice(0, foundDepth);
+    return [
+      _.get(tree, rootPath.concat('default').join('.')),
+      foundDepth
+    ];
   } else if (found && _.isFunction(found)) {
-    let remainder = fullPath.slice(depth, deepest).join('.');
-    return [found, remainder];
+    return [
+      found,
+      depth
+    ];
   } else if (found && depth == deepest) {
-    let remainder = fullPath.slice(depth, deepest).join('.');
     // error if remainder is empty
-    return [_.get(tree, depthPath.concat('default').join('.')), remainder];
+    return [
+      _.get(tree, depthPath.concat('default').join('.')),
+      depth
+    ];
   } else if (depth >= deepest) {
     // throw error or warning
     // looked for reducer, but nothing left to look for
@@ -69,18 +79,31 @@ function getReducer(tree, fullPath, depth=1) {
   }
 }
 
-function combineReducerFromTree(tree) {
+function createObjectWithPath(path, value) {
+  let valueObj = {[path[path.length - 1]]: value};
+  return _.reduce(path.slice(0, path.length - 1).reverse(), (acc, name) => {
+    return {[name]: acc};
+  }, valueObj);
+}
+
+function defaultUpdateState(state, statePath, reduced) {
+  return _.merge(state, createObjectWithPath(statePath, reduced));
+}
+
+function combineReducerFromTree(tree, updateStateFn=defaultUpdateState) {
   return function(state, action) {
     let typePath = action.type.split('.');
-    let [reducer, remainder] = getReducer(tree, typePath);
+    let [reducer, depth] = getReducer(tree, typePath);
 
     if (reducer) {
+      let remainder = typePath.slice(depth, typePath.length).join('.');
       action.type = remainder;
-      return reducer(state, action);
+      let statePath = typePath.slice(0, depth); // everything that comes before remainder
+      let reduced = reducer(_.get(state, statePath), action);
+      return updateStateFn(state, statePath, reduced);
     } else {
       return state;
     }
-    
   };
 }
 
@@ -138,24 +161,23 @@ const reducerTree = {
   }
 };
 
+assert.equal(
+  _.get(createObjectWithPath(['hello', 'there'], 2), 'hello.there'),
+  2
+, 'page should update to 2');
 
-// // should return default with remainder of 'somethin'
-// console.log(
-//   getReducer({default: function() {}}, ['something'])
-// );
-
-// // this should grab the default of something
-// console.log(
-//   getReducer({default: function() {}, something: {default: function() {} } }, ['something', 'deep', 'sodeep'])
-// );
-
-// // returns sodeep as remainder and the deep function
-// console.log(
-//   getReducer({default: function() {}, something: {default: function() {}, deep: function() {} } }, ['something', 'deep', 'sodeep'])
-// );
-
-
-let finalReducer = combineReducerFromTree(reducerTree);
+// the combineReducerFromTree takes a function that receives state, statePath, reduced
+// so that you can update your store however you want, by default it assumes you are
+// using a plain object and merges in the new state.
+let finalReducer = combineReducerFromTree(reducerTree, defaultUpdateState);
 
 // calls the searchFilter reducer with action {type:'page'}
-console.log(finalReducer({a: 2}, {type: 'deals.searchFilter.page' }));
+let newState = finalReducer(
+  {deals: {searchFilter: {page: 1}}},
+  {type: 'deals.searchFilter.page'}
+);
+assert.equal(
+  _.get(newState, 'deals.searchFilter.page'),
+  2, 'page should update to 2');
+
+console.log(newState);
