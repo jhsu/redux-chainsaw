@@ -1,8 +1,5 @@
 import _ from 'lodash';
 
-import chai from 'chai';
-let assert = chai.assert;
-
 // wraps action creator and overrides type.
 // TODO: handle thunk
 // TODO: do we want to override type like this?
@@ -28,7 +25,7 @@ function generateLevel(ele, name, path) {
   }
 }
 
-function createActionCreators(actionTree) {
+export function createActionCreators(actionTree) {
   return _.reduce(actionTree, function (acc, ele, name) {
     acc[name] = generateLevel(ele, name, []);
     return acc;
@@ -39,7 +36,7 @@ function createActionCreators(actionTree) {
 
 // lookup action creator function in tree
 
-function lookupActionCreator(tree, path) {
+export function lookupActionCreator(tree, path) {
   // TODO: error or warning if none found
   let root = _.get(tree, path);
   return (_.isFunction(root) ? root : _.get(tree, `${path}.default`));
@@ -79,7 +76,7 @@ function getReducer(tree, fullPath, depth=1) {
   }
 }
 
-function createObjectWithPath(path, value) {
+export function createObjectWithPath(path, value) {
   let valueObj = {[path[path.length - 1]]: value};
   return _.reduce(path.slice(0, path.length - 1).reverse(), (acc, name) => {
     return {[name]: acc};
@@ -90,7 +87,7 @@ function defaultUpdateState(state, statePath, reduced) {
   return _.merge(state, createObjectWithPath(statePath, reduced));
 }
 
-function combineReducerFromTree(tree, updateStateFn=defaultUpdateState) {
+export function combineReducerFromTree(tree, updateStateFn=defaultUpdateState) {
   return function(state, action) {
     let typePath = action.type.split('.');
     let [reducer, depth] = getReducer(tree, typePath);
@@ -106,78 +103,3 @@ function combineReducerFromTree(tree, updateStateFn=defaultUpdateState) {
     }
   };
 }
-
-
-
-/// ============
-
-
-
-function testActionCreator(info) {
-  return {
-    type: 'some display thing',
-    payload: {
-      number: 1
-    }
-  };
-}
-
-const actionTree = {
-  deals: {
-    default: testActionCreator,
-    searchFilter: {
-      default: testActionCreator,
-      page: testActionCreator
-    }
-  }
-};
-
-const ActionCreators = createActionCreators(actionTree);
-
-// lookupActionCreator(ActionCreators, 'deals.searchFilter')
-
-function dealsReducer(state, action) {
-  return state;
-}
-
-function searchFilterReducer(state, action) {
-  switch (action.type) {
-    case 'page':
-      state.page = (state.page || 0) + 1;
-      return state;
-    default:
-      return state;
-  }
-}
-
-// create reducer with tree
-// TODO: validate compare with action tree
-const reducerTree = {
-  deals: {
-    default: dealsReducer,
-    searchFilter: {
-      default: searchFilterReducer
-    }
-  }
-};
-
-assert.equal(
-  _.get(createObjectWithPath(['hello', 'there'], 2), 'hello.there'),
-  2
-, 'page should update to 2');
-
-// the combineReducerFromTree takes a function that receives state, statePath, reduced
-// so that you can update your store however you want, by default it assumes you are
-// using a plain object and merges in the new state.
-let finalReducer = combineReducerFromTree(reducerTree, defaultUpdateState);
-
-// calls the searchFilter reducer with action {type:'page'}
-let newState = finalReducer(
-  {deals: {searchFilter: {page: 1}}},
-  {type: 'deals.searchFilter.page'}
-);
-assert.equal(
-  _.get(newState, 'deals.searchFilter.page'),
-  2, 'page should update to 2');
-
-console.log(newState);

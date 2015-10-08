@@ -4,14 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "babel-node index.js"
+    "test": "mocha --compilers js:babel/register",
+    "prepublish": "babel --out-file index.js ReduxChainsaw.js"
   },
   "author": "Joe Hsu <jhsu.x1@gmail.com> (http://twitter.com/jhsu)",
   "license": "MIT",
   "devDependencies": {
     "babel": "^5.8.23",
-    "chai": "^3.3.0",
-    "karma": "^0.13.10"
+    "karma": "^0.13.10",
+    "mocha": "^2.3.3"
   },
   "dependencies": {
     "lodash": "^3.10.1"
