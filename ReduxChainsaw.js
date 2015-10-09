@@ -3,20 +3,20 @@ import _ from 'lodash';
 // wraps action creator and overrides type.
 // TODO: handle thunk
 // TODO: do we want to override type like this?
-function generateActionCreator(creator, typeName) {
-  return function(eventInfo) {
-    let action = {};
-    action = creator(eventInfo);
-    action.type = typeName;
-    return action;
-  };
-}
+// function generateActionCreator(creator, typeName) {
+//   return function(eventInfo) {
+//     let action = {};
+//     action = creator(eventInfo);
+//     action.type = typeName;
+//     return action;
+//   };
+// }
 
 // recursive function for walking through and wrapping action creators
 function generateLevel(ele, name, path) {
   if (_.isFunction(ele)) {
     let typeName = path.concat(name).join('.');
-    return generateActionCreator(ele, typeName);
+    return ele;
   } else {
     return _.reduce(ele, (acc, childEle, childName) => {
       acc[childName] = generateLevel(childEle, childName, path.concat(name));
@@ -37,9 +37,36 @@ export function createActionCreators(actionTree) {
 // lookup action creator function in tree
 
 export function lookupActionCreator(tree, path) {
+  let walkPath = path.split('.');
+  let actionCreator;
+  let pathIdx = 1;
+  while (!actionCreator && pathIdx <= walkPath.length) {
+    let node = _.get(tree, walkPath.slice(0, pathIdx));
+
+    if (node && _.isFunction(node)) {
+      actionCreator = node;
+      break;
+    } else if (pathIdx === walkPath.length) {
+      return node.default;
+    } else if (!node) {
+      let root = _.get(tree, walkPath.slice(0, pathIdx - 1));
+      actionCreator = _.isFunction(root) ? root : _.get(root, ['default']);
+      break;
+    }
+    pathIdx++;
+  }
   // TODO: error or warning if none found
-  let root = _.get(tree, path);
-  return (_.isFunction(root) ? root : _.get(tree, `${path}.default`));
+  // let root = _.get(tree, path);
+  // return (_.isFunction(root) ? root : _.get(tree, `${path}.default`));
+  if (actionCreator) {
+    return function() {
+      let action = actionCreator(...arguments);
+      action.type = path;
+      return action;
+    };
+  } else {
+    return null;
+  }
 }
 
 
@@ -84,7 +111,7 @@ export function createObjectWithPath(path, value) {
 }
 
 function defaultUpdateState(state, statePath, reduced) {
-  return _.merge(state, createObjectWithPath(statePath, reduced));
+  return _.merge({}, state || {}, createObjectWithPath(statePath, reduced));
 }
 
 export function combineReducerFromTree(tree, updateStateFn=defaultUpdateState) {

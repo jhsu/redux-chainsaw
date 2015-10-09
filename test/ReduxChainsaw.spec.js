@@ -9,6 +9,30 @@ import {
 } from '../ReduxChainsaw';
 
 describe('lookupActionCreator', function() {
+  it('has a type of the full path', function() {
+    function testActionCreator() {
+      return {
+        type: 'wrong',
+        payload: {
+          info: 'deals.searchFilter'
+        }
+      };
+    }
+
+    let actionTree = {
+      deals: {
+        searchFilter: {
+          pagination: testActionCreator
+        }
+      }
+    };
+
+    let ActionCreators = createActionCreators(actionTree);
+
+    let actionCreator = lookupActionCreator(ActionCreators, 'deals.searchFilter.pagination.page');
+    assert.equal(actionCreator().type, 'deals.searchFilter.pagination.page');
+  });
+
   it('can lookup an action creator', function() {
     function testActionCreator() {
       return {
@@ -18,8 +42,11 @@ describe('lookupActionCreator', function() {
         }
       };
     }
-    function wrong() {
-      assert.fail('testActionCreator', 'wrong', 'Wrong action creator called.');
+    function wrong(action) {
+      // assert.fail(action.type, 'wrong', 'Wrong action creator called.');
+      return {
+        payload: {}
+      };
     }
 
     let actionTree = {
@@ -34,7 +61,7 @@ describe('lookupActionCreator', function() {
     let ActionCreators = createActionCreators(actionTree);
 
     let actionCreator = lookupActionCreator(ActionCreators, 'deals.searchFilter');
-    assert.equal(actionCreator().payload.info, testActionCreator().payload.info);
+    assert.equal(actionCreator(2).payload.info, testActionCreator().payload.info);
   });
 });
 
